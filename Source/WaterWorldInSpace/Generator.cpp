@@ -5,6 +5,7 @@
 #include "Engine/World.h"
 #include "TimerManager.h"
 #include "Engine/Engine.h"
+#include "Kismet/GameplayStatics.h"
 
 AGenerator::AGenerator()
 {
@@ -20,17 +21,24 @@ void AGenerator::BeginPlay()
 {
     Super::BeginPlay();
 
-    if (!SkillCheckComponent) return;
+    if (!SkillCheckComponent)
+    {
+        return;
+    }
 
     SkillCheckComponent->OnSkillCheckResult.AddDynamic(this, &AGenerator::OnSkillCheckResult);
 
     CurrentHP = 0.0f;
     bIsRepairing = false;
+    bIsInteracting = false;
 }
 
 void AGenerator::Interact()
 {
-    if (CurrentHP >= MaxHP) return;
+    if (CurrentHP >= MaxHP)
+    {
+        return;
+    }
 
     if (bIsInteracting)
     {
@@ -41,8 +49,6 @@ void AGenerator::Interact()
     bIsInteracting = true;
     bIsRepairing = true;
     BlockPlayerInput(true);
-
-    ShowHPOnScreen();
 
     float Delay = FMath::RandRange(0.5f, 2.0f);
     GetWorld()->GetTimerManager().SetTimer(
@@ -58,11 +64,16 @@ void AGenerator::StartSkillCheckDelayed()
 {
     if (!bIsInteracting) return;
 
-    if (!SkillCheckComponent) return;
+    if (!SkillCheckComponent)
+    {
+        return;
+    }
 
-    if (SkillCheckComponent->IsSkillCheckActive()) return;
+    if (SkillCheckComponent->IsSkillCheckActive())
+        return;
 
-       
+    PlaySound(SkillCheckStartSound);
+
     SkillCheckComponent->StartSkillCheck();
 }
 
@@ -78,7 +89,7 @@ void AGenerator::OnSkillCheckResult(ESkillCheckResult Result)
 
     if (CurrentHP >= MaxHP)
     {
-        CompleteRepair();
+        FinishRepair(true);
         return;
     }
 
@@ -94,23 +105,31 @@ void AGenerator::OnSkillCheckResult(ESkillCheckResult Result)
 
 void AGenerator::HandleGreat()
 {
-    AddHP(30.0f);
+    AddHP(GreateHP);
+    PlaySound(GreatHitSound);
 }
 
 void AGenerator::HandleGood()
 {
-    AddHP(20.0f);
+    AddHP(GoodHP);
+    PlaySound(GoodHitSound);
 }
 
 void AGenerator::HandleMiss()
 {
-    AddHP(-10.0f);
+    AddHP(MissHP);
+    PlaySound(MissSound);
 }
 
 void AGenerator::AddHP(float Delta)
 {
     CurrentHP = FMath::Clamp(CurrentHP + Delta, 0.0f, MaxHP);
-    ShowHPOnScreen();
+
+    if (GEngine)
+    {
+        FString HPMessage = FString::Printf(TEXT("Generator HP: %.1f / %.1f"), CurrentHP, MaxHP);
+        GEngine->AddOnScreenDebugMessage(-1, 2.0f, FColor::Cyan, HPMessage);
+    }
 }
 
 void AGenerator::BlockPlayerInput(bool bBlock)
@@ -133,33 +152,32 @@ void AGenerator::CancelInteraction()
         SkillCheckComponent->StopSkillCheck();
     }
 
+    FinishRepair(false);
+}
+
+void AGenerator::FinishRepair(bool bSuccess)
+{
+    if (!bIsInteracting) return;
+
     bIsInteracting = false;
     bIsRepairing = false;
-    BlockPlayerInput(false);
 
-    if (GEngine)
+    BlockPlayerInput(false);
+    GetWorld()->GetTimerManager().ClearTimer(SkillCheckDelayTimer);
+
+    if (bSuccess)
     {
-        GEngine->ClearOnScreenDebugMessages();
+        if (RepairCompleteSound)
+        {
+            UGameplayStatics::PlaySoundAtLocation(GetWorld(), RepairCompleteSound, GetActorLocation());
+        }
     }
 }
 
-void AGenerator::CompleteRepair()
+void AGenerator::PlaySound(USoundBase* Sound)
 {
-    bIsInteracting = false;
-    bIsRepairing = false;
-    BlockPlayerInput(false);
-
-    if (GEngine)
+    if (Sound && GetWorld())
     {
-        GEngine->ClearOnScreenDebugMessages();
-        GEngine->AddOnScreenDebugMessage(-1, 3.0f, FColor::Green, TEXT("Generator fully repaired!"));
+        UGameplayStatics::PlaySound2D(GetWorld(), Sound);
     }
-}
-
-void AGenerator::ShowHPOnScreen()
-{
-    if (!GEngine) return;
-
-    FString HPMessage = FString::Printf(TEXT("Generator HP: %.0f / %.0f"), CurrentHP, MaxHP);
-    GEngine->AddOnScreenDebugMessage(-1, 0.5f, FColor::White, HPMessage);
 }
