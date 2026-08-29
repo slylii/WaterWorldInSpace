@@ -6,6 +6,7 @@
 
 class UStaticMeshComponent;
 class USkillCheckComponent;
+class USoundBase;
 enum class ESkillCheckResult : uint8;
 
 UCLASS()
@@ -33,13 +34,34 @@ public:
     float CurrentHP = 0.0f;
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Generator")
-    float MaxHP = 100.0f;
+    float GreateHP = 300.0f;
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Generator")
+    float GoodHP = 20.0f;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Generator")
+    float MissHP = -10.0f;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Generator")
+    float MaxHP = 100.0f;
+
+    UPROPERTY(BlueprintReadWrite, Category = "Generator")
     bool bIsRepairing = false;
 
-    UFUNCTION(BlueprintCallable, Category = "Generator|Interaction")
-    void CompleteRepair();
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Generator|Sound")
+    USoundBase* SkillCheckStartSound;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Generator|Sound")
+    USoundBase* GoodHitSound;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Generator|Sound")
+    USoundBase* GreatHitSound;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Generator|Sound")
+    USoundBase* MissSound;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Generator|Sound")
+    USoundBase* RepairCompleteSound;
 
 protected:
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
@@ -49,7 +71,6 @@ protected:
     TObjectPtr<USkillCheckComponent> SkillCheckComponent;
 
     bool bIsInteracting = false;
-
     FTimerHandle SkillCheckDelayTimer;
 
     void HandleGreat();
@@ -58,5 +79,7 @@ protected:
     void AddHP(float Delta);
     void BlockPlayerInput(bool bBlock);
     void CancelInteraction();
-    void ShowHPOnScreen();
+    void FinishRepair(bool bSuccess);
+
+    void PlaySound(USoundBase* Sound);
 };
